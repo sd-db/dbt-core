@@ -9,3 +9,4 @@
 | #15740 | `incremental-append` |
 | #15711 | `invocation-id-query-comment` |
 | #15741 | `streaming-table-rerun` |
+| #15710 | `catalog-metadata-text` |
