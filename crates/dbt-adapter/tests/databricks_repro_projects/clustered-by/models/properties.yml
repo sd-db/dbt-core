@@ -7,9 +7,24 @@ models:
       clustered_by: event_class
       buckets: 7
 
+  - name: multi_key_events
+    config:
+      materialized: table
+      clustered_by: [event_class, market_zone]
+      buckets: 7
+
+  - name: single_key_python_events
+    config:
+      materialized: table
+      submission_method: all_purpose_cluster
+      clustered_by: event_class
+      buckets: 7
+      pre_hook: "select 1"
+
   - name: multi_key_python_events
     config:
       materialized: table
       submission_method: all_purpose_cluster
       clustered_by: [event_class, market_zone]
       buckets: 7
+      pre_hook: "select 1"

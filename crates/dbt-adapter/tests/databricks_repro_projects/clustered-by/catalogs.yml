@@ -1,0 +1,8 @@
+catalogs:
+  - name: public_fixture_catalog
+    active_write_integration: public_fixture_integration
+    write_integrations:
+      - name: public_fixture_integration
+        catalog_type: hive_metastore
+        table_format: delta
+        file_format: parquet

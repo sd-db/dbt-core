@@ -3,3 +3,11 @@ version: "0.1.0"
 config-version: 2
 
 model-paths: ["models"]
+macro-paths: ["macros"]
+
+models:
+  public_clustered_by_fixture:
+    +catalog_name: "public_fixture_catalog"
+    +database: "public_fixture_database"
+    +file_format: "parquet"
+    +tags: ["public_fixture"]
