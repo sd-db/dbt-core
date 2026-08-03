@@ -6,3 +6,4 @@
 | #15716 | `notebook-scoped-python-packages` |
 | #15743 | `clustered-by` |
 | #15762 | `clustered-by` |
+| #15740 | `incremental-append` |
