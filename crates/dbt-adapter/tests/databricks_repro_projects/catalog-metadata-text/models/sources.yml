@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: synthetic_empty_catalog
+    database: "{{ target.database }}"
+    schema: "{{ target.schema }}_empty_catalog"
+    tables:
+      - name: synthetic_source_relation

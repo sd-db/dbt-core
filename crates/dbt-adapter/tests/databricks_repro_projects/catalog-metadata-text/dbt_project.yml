@@ -2,7 +2,16 @@ name: catalog_metadata_text
 version: 1.0.0
 config-version: 2
 model-paths: ["models"]
+macro-paths: ["macros"]
+
+on-run-start:
+  - "{{ prepare_synthetic_empty_schema() }}"
 
 models:
   catalog_metadata_text:
-    +materialized: table
+    text_columns:
+      +database: "{{ target.database }}"
+      +schema: "{{ target.schema }}_catalog_text"
+    numeric_columns:
+      +database: "{{ target.database }}"
+      +schema: "{{ target.schema }}_catalog_numeric"
