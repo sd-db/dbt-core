@@ -2,3 +2,29 @@ name: query_tags
 version: 1.0.0
 config-version: 2
 model-paths: ["models"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+
+vars:
+  synthetic_query_tag_value: "project"
+
+on-run-start:
+  - "select 1 as synthetic_hook_probe"
+
+models:
+  query_tags:
+    project_default_probe:
+      +materialized: view
+      +query_tags:
+        scope: "project"
+        inherited: "true"
+
+snapshots:
+  query_tags:
+    +query_tags:
+      scope: "snapshot_default"
+
+tests:
+  query_tags:
+    +query_tags:
+      scope: "test_default"

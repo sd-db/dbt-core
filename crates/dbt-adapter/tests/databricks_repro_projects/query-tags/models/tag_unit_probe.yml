@@ -1,0 +1,12 @@
+version: 2
+
+unit_tests:
+  - name: tag_unit_probe
+    model: tag_unit_probe
+    config:
+      query_tags:
+        scope: "unit_test"
+    given: []
+    expect:
+      rows:
+        - synthetic_id: 1
