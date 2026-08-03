@@ -1,0 +1,5 @@
+name: "public_materialized_view_tag_fixture"
+version: "1.0.0"
+config-version: 2
+
+model-paths: ["models"]
