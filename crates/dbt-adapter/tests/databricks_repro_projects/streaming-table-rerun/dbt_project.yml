@@ -3,3 +3,7 @@ version: "1.0.0"
 config-version: 2
 
 model-paths: ["models"]
+
+models:
+  streaming_table_rerun:
+    +tags: ["streaming-table-rerun"]
