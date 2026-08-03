@@ -3,3 +3,8 @@ version: "1.0.0"
 config-version: 2
 
 model-paths: ["models"]
+macro-paths: ["macros"]
+
+models:
+  invocation_id_query_comment:
+    +tags: ["invocation-id-query-comment"]
