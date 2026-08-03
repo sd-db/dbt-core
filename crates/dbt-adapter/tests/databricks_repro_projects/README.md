@@ -11,3 +11,4 @@
 | #15741 | `streaming-table-rerun` |
 | #15710 | `catalog-metadata-text` |
 | #15739 | `delete-insert-incremental` |
+| #15702 | `query-tags` |
