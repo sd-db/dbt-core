@@ -1,7 +1,16 @@
-{{ config(materialized="incremental", incremental_strategy="append") }}
+{{
+  config(
+    materialized="incremental",
+    incremental_strategy="append"
+  )
+}}
 
 {% if is_incremental() %}
-select 4 as sequence_number, 'later' as phase
+select cast(3 as bigint) as sequence_number, 'rerun' as phase
+union all
+select cast(4 as bigint) as sequence_number, 'rerun' as phase
 {% else %}
-select 1 as sequence_number, 'first' as phase
+select cast(1 as bigint) as sequence_number, 'initial' as phase
+union all
+select cast(2 as bigint) as sequence_number, 'initial' as phase
 {% endif %}
