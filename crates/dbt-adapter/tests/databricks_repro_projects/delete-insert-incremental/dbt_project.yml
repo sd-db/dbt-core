@@ -2,3 +2,8 @@ name: delete_insert_incremental
 version: 1.0.0
 config-version: 2
 model-paths: ["models"]
+
+models:
+  delete_insert_incremental:
+    +database: "{{ target.database }}"
+    +schema: "{{ target.schema }}_delete_insert"
