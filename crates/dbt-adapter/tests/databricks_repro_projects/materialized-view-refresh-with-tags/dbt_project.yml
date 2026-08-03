@@ -3,3 +3,8 @@ version: "1.0.0"
 config-version: 2
 
 model-paths: ["models"]
+macro-paths: ["macros"]
+
+models:
+  public_materialized_view_tag_fixture:
+    +tags: ["public_fixture"]
