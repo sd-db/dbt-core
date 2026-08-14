@@ -157,6 +157,43 @@ where
     })
 }
 
+fn deserialize_optional_dictionary<'de, D>(
+    deserializer: D,
+    config_name: &str,
+) -> Result<Option<BTreeMap<String, YmlValue>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<YmlValue>::deserialize(deserializer)?;
+    match value {
+        None => Ok(None),
+        Some(value @ YmlValue::Mapping(..)) => BTreeMap::deserialize(value)
+            .map(Some)
+            .map_err(de::Error::custom),
+        Some(_) => Err(de::Error::custom(format!(
+            "{config_name} must be a dictionary"
+        ))),
+    }
+}
+
+pub fn deserialize_databricks_tags<'de, D>(
+    deserializer: D,
+) -> Result<Option<BTreeMap<String, YmlValue>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_dictionary(deserializer, "databricks_tags")
+}
+
+pub fn deserialize_tblproperties<'de, D>(
+    deserializer: D,
+) -> Result<Option<BTreeMap<String, YmlValue>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_dictionary(deserializer, "tblproperties")
+}
+
 /// Serialize a `DocsConfig` always including `node_color` as an explicit null when absent.
 /// dbt-core writes manifests with omit_none=False, so node_color must be present.
 pub fn serialize_docs_with_nulls<S>(docs: &DocsConfig, serializer: S) -> Result<S::Ok, S::Error>

@@ -6,6 +6,7 @@ use crate::errors::into_fs_error;
 use crate::metadata::*;
 use crate::parse::adapter::ParseAdapterState;
 use crate::query_ctx::{node_id_from_state, query_ctx_from_state};
+use crate::relation::config_v2::RelationConfig;
 use crate::relation::databricks::DEFAULT_DATABRICKS_DATABASE;
 use crate::relation::factory::create_static_relation;
 use crate::relation::spark::DEFAULT_SPARK_DATABASE;
@@ -3196,9 +3197,13 @@ impl Adapter {
     ) -> Result<Value, minijinja::Error> {
         match &self.inner {
             Typed { adapter, .. } => {
-                let iter = ArgsIter::new("get_relation_config", &["relation"], args);
+                let iter =
+                    ArgsIter::new("get_relation_config", &["relation", "model_config"], args);
                 let relation_val = iter.next_arg::<&Value>()?;
                 let relation = downcast_value_to_dyn_base_relation(relation_val)?;
+                let model_config = iter
+                    .next_arg::<Option<Value>>()?
+                    .and_then(|value| value.downcast_object::<RelationConfig>());
                 iter.finish()?;
 
                 let mut conn =
@@ -3207,6 +3212,7 @@ impl Adapter {
                     state,
                     conn.as_mut(),
                     &relation,
+                    model_config.as_deref(),
                     self.cancellation_token.clone(),
                 )?;
                 Ok(Value::from_object(config))
@@ -3304,6 +3310,23 @@ impl Adapter {
                 Ok(Value::from(adapter.clean_sql(sql)?))
             }
             Parse(_) => unimplemented!("clean_sql"),
+        }
+    }
+
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub fn yaml_quote_backtick_values(
+        &self,
+        _state: &State,
+        args: &[Value],
+    ) -> Result<Value, minijinja::Error> {
+        match &self.inner {
+            Typed { adapter, .. } => {
+                let iter = ArgsIter::new("yaml_quote_backtick_values", &["yaml_body"], args);
+                let yaml_body = iter.next_arg::<&str>()?;
+                iter.finish()?;
+                Ok(Value::from(adapter.yaml_quote_backtick_values(yaml_body)?))
+            }
+            Parse(_) => unimplemented!("yaml_quote_backtick_values"),
         }
     }
 
@@ -3962,6 +3985,8 @@ impl Adapter {
             "parse_columns_and_constraints" => self.parse_columns_and_constraints(state, args),
             // sql: str
             "clean_sql" => self.clean_sql(state, args),
+            // yaml_body: str
+            "yaml_quote_backtick_values" => self.yaml_quote_backtick_values(state, args),
             "get_seed_file_path" => {
                 // model: dict (seed node)
                 let iter = ArgsIter::new(name, &["model"], args);

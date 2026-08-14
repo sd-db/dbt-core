@@ -11,8 +11,12 @@
     underlying `.render()` method when running under dbt-core (1.x). -#}
 {% macro render_type(relation_type) -%}
   {% if dbt_version.startswith('2.') %}
-    {{- relation_type | replace("_", " ") | upper -}}
+    {% if relation_type == 'metric_view' %}
+      VIEW
+    {% else %}
+      {{- relation_type | replace("_", " ") | upper -}}
+    {% endif %}
   {% else %}
-    {{- relation_type.render() -}}
+    {{- relation_type.render_for_alter() -}}
   {% endif %}
 {%- endmacro %}

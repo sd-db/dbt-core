@@ -12,6 +12,7 @@ use indexmap::{IndexMap, IndexSet};
 
 pub(crate) mod incremental_table;
 pub(crate) mod materialized_view;
+pub(crate) mod metric_view;
 pub(crate) mod streaming_table;
 pub(crate) mod view;
 
@@ -209,6 +210,7 @@ pub(crate) fn relation_config_from_recorded(
         RelationType::MaterializedView => {
             |c| requires_full_refresh(MaterializationType::MaterializedView, c)
         }
+        RelationType::MetricView => |c| requires_full_refresh(MaterializationType::MetricView, c),
         RelationType::StreamingTable => {
             |c| requires_full_refresh(MaterializationType::StreamingTable, c)
         }
@@ -230,6 +232,7 @@ pub(crate) fn relation_config_from_recorded(
 pub(super) enum MaterializationType {
     IncrementalTable,
     MaterializedView,
+    MetricView,
     StreamingTable,
     View,
 }
@@ -259,6 +262,7 @@ pub(super) fn requires_full_refresh(
             ];
             REFRESH_ON.iter().any(|k| components.contains_key(k))
         }
+        MaterializationType::MetricView => false,
         // https://github.com/databricks/dbt-databricks/blob/main/dbt/adapters/databricks/relation_configs/streaming_table.py
         MaterializationType::StreamingTable => components.contains_key(partition_by::TYPE_NAME),
         // https://github.com/databricks/dbt-databricks/blob/main/dbt/adapters/databricks/relation_configs/view.py

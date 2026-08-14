@@ -2,7 +2,7 @@
 
 use crate::errors::AdapterResult;
 use crate::relation::config_v2::{
-    ComponentConfig, ComponentConfigLoader, SimpleComponentConfigImpl, diff, impl_loader,
+    ComponentConfig, ComponentConfigLoader, SimpleComponentConfigImpl, impl_loader,
 };
 use crate::relation::databricks::config::{
     DatabricksRelationMetadata, DatabricksRelationMetadataKey,
@@ -19,6 +19,20 @@ pub(crate) const TYPE_NAME: &str = "tags";
 /// Component for Databricks tags.
 pub type RelationTags = SimpleComponentConfigImpl<IndexMap<String, String>>;
 
+fn stringify_tag_value(value: &YmlValue) -> String {
+    match value {
+        YmlValue::Null(_) => String::new(),
+        YmlValue::Bool(value, _) => if *value { "True" } else { "False" }.to_string(),
+        YmlValue::Number(value, _) => value.to_string(),
+        YmlValue::String(value, _) => value.clone(),
+        YmlValue::Tagged(value, _) => stringify_tag_value(&value.value),
+        value => dbt_yaml::to_string(value)
+            .unwrap_or_default()
+            .trim()
+            .to_string(),
+    }
+}
+
 fn to_jinja(v: &IndexMap<String, String>) -> Value {
     Value::from(ValueMap::from([(
         Value::from("set_tags"),
@@ -29,10 +43,20 @@ fn to_jinja(v: &IndexMap<String, String>) -> Value {
 fn new_component(tags: IndexMap<String, String>) -> RelationTags {
     RelationTags {
         type_name: TYPE_NAME,
-        diff_fn: diff::desired_state,
+        diff_fn: diff,
         to_jinja_fn: to_jinja,
         value: tags,
     }
+}
+
+fn diff(
+    desired_state: &IndexMap<String, String>,
+    current_state: &IndexMap<String, String>,
+) -> Option<IndexMap<String, String>> {
+    desired_state
+        .iter()
+        .any(|(key, value)| current_state.get(key) != Some(value))
+        .then(|| desired_state.clone())
 }
 
 fn from_remote_state(results: &DatabricksRelationMetadata) -> AdapterResult<RelationTags> {
@@ -46,10 +70,12 @@ fn from_remote_state(results: &DatabricksRelationMetadata) -> AdapterResult<Rela
     for row in remote_tags.rows() {
         if let (Ok(tag_name_val), Ok(tag_value_val)) =
             (row.get_item(&Value::from(0)), row.get_item(&Value::from(1)))
-            && let (Some(tag_name), Some(tag_value)) =
-                (tag_name_val.as_str(), tag_value_val.as_str())
+            && let Some(tag_name) = tag_name_val.as_str()
         {
-            tags.insert(tag_name.to_string(), tag_value.to_string());
+            tags.insert(
+                tag_name.to_string(),
+                tag_value_val.as_str().unwrap_or_default().to_string(),
+            );
         }
     }
 
@@ -69,9 +95,7 @@ fn from_local_config(
         && let Some(tags_map) = &databricks_attr.databricks_tags
     {
         for (key, value) in tags_map {
-            if let YmlValue::String(value_str, _) = value {
-                tags.insert(key.clone(), value_str.clone());
-            }
+            tags.insert(key.clone(), stringify_tag_value(value));
         }
     }
 
@@ -90,6 +114,17 @@ impl RelationTagsLoader {
 mod tests {
     use super::*;
     use crate::relation::config_v2::ComponentConfig;
+
+    #[test]
+    fn test_scalar_values_use_python_stringification() {
+        let integer = dbt_yaml::from_str("1").unwrap();
+        let null = dbt_yaml::from_str("null").unwrap();
+        let boolean = dbt_yaml::from_str("false").unwrap();
+
+        assert_eq!(stringify_tag_value(&integer), "1");
+        assert_eq!(stringify_tag_value(&null), "");
+        assert_eq!(stringify_tag_value(&boolean), "False");
+    }
 
     #[test]
     fn test_get_diff_add_or_update() {
@@ -121,5 +156,16 @@ mod tests {
         let diff = RelationTags::diff_from(&config, Some(&config));
 
         assert!(diff.is_none());
+    }
+
+    #[test]
+    fn test_get_diff_does_not_unset_tags() {
+        let current = new_component(IndexMap::from([(
+            "server_tag".to_string(),
+            "retained".to_string(),
+        )]));
+        let desired = new_component(IndexMap::new());
+
+        assert!(desired.diff_from(Some(&current)).is_none());
     }
 }

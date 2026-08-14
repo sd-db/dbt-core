@@ -42,8 +42,8 @@ use crate::schemas::properties::{ModelFreshness, ModelState};
 use crate::schemas::serde::StringOrArrayOfStrings;
 use crate::schemas::serde::{
     IndexesConfig, PrimaryKeyConfig, StringOrInteger, bool_or_string_bool, default_type,
-    f64_or_string_f64, hours_to_expiration_or_string_omissible, string_or_number_to_string,
-    u64_or_string_u64,
+    deserialize_databricks_tags, deserialize_tblproperties, f64_or_string_f64,
+    hours_to_expiration_or_string_omissible, string_or_number_to_string, u64_or_string_u64,
 };
 use dbt_proc_macros::{DefaultTo, Resolvable};
 use dbt_yaml::ShouldBe;
@@ -149,7 +149,11 @@ pub struct ProjectModelConfig {
     pub database: Omissible<Option<String>>,
     #[serde(rename = "+databricks_compute")]
     pub databricks_compute: Option<String>,
-    #[serde(rename = "+databricks_tags")]
+    #[serde(
+        default,
+        rename = "+databricks_tags",
+        deserialize_with = "deserialize_databricks_tags"
+    )]
     pub databricks_tags: Option<BTreeMap<String, YmlValue>>,
     #[serde(rename = "+submission_method")]
     pub submission_method: Option<String>,
@@ -469,7 +473,11 @@ pub struct ProjectModelConfig {
     pub target_lag: Option<String>,
     #[serde(rename = "+target_file_size")]
     pub target_file_size: Option<String>,
-    #[serde(rename = "+tblproperties")]
+    #[serde(
+        default,
+        rename = "+tblproperties",
+        deserialize_with = "deserialize_tblproperties"
+    )]
     pub tblproperties: Option<BTreeMap<String, YmlValue>>,
     #[serde(rename = "+tmp_relation_type")]
     pub tmp_relation_type: Option<String>,
@@ -1872,6 +1880,32 @@ mod tests {
     use crate::schemas::manifest::ManifestModelConfig;
     use crate::schemas::project::configs::model_config::ProjectModelConfig;
     use crate::schemas::properties::StatePreClone;
+
+    #[test]
+    fn test_databricks_tags_rejects_non_dictionary_config() {
+        let error = dbt_yaml::from_str::<ProjectModelConfig>(
+            "+databricks_tags:\n  - not-a-dictionary\n__additional_properties__: {}\n",
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.display_no_mark().to_string(),
+            "databricks_tags must be a dictionary"
+        );
+    }
+
+    #[test]
+    fn test_tblproperties_rejects_non_dictionary_config() {
+        let error = dbt_yaml::from_str::<ProjectModelConfig>(
+            "+tblproperties: true\n__additional_properties__: {}\n",
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.display_no_mark().to_string(),
+            "tblproperties must be a dictionary"
+        );
+    }
 
     #[test]
     fn test_classifiers_merge_in_default_to() {

@@ -425,6 +425,8 @@ pub enum DbtMaterialization {
     Table,
     Incremental,
     MaterializedView,
+    /// only for databricks
+    MetricView,
     External,
     Test,
     Ephemeral,
@@ -449,6 +451,7 @@ impl FromStr for DbtMaterialization {
             "table" => Ok(DbtMaterialization::Table),
             "incremental" => Ok(DbtMaterialization::Incremental),
             "materialized_view" => Ok(DbtMaterialization::MaterializedView),
+            "metric_view" => Ok(DbtMaterialization::MetricView),
             "external" => Ok(DbtMaterialization::External),
             "test" => Ok(DbtMaterialization::Test),
             "ephemeral" => Ok(DbtMaterialization::Ephemeral),
@@ -475,6 +478,7 @@ impl std::fmt::Display for DbtMaterialization {
             DbtMaterialization::Table => "table",
             DbtMaterialization::Incremental => "incremental",
             DbtMaterialization::MaterializedView => "materialized_view",
+            DbtMaterialization::MetricView => "metric_view",
             DbtMaterialization::External => "external",
             DbtMaterialization::Test => "test",
             DbtMaterialization::Ephemeral => "ephemeral",
@@ -499,6 +503,7 @@ impl From<DbtMaterialization> for RelationType {
             DbtMaterialization::Table => RelationType::Table,
             DbtMaterialization::View => RelationType::View,
             DbtMaterialization::MaterializedView => RelationType::MaterializedView,
+            DbtMaterialization::MetricView => RelationType::MetricView,
             DbtMaterialization::Ephemeral => RelationType::Ephemeral,
             DbtMaterialization::External => RelationType::External,
             DbtMaterialization::Test => RelationType::External, // TODO Validate this
@@ -527,6 +532,7 @@ impl From<&DbtMaterialization> for NodeMaterialization {
             DbtMaterialization::Table => Self::Table,
             DbtMaterialization::View => Self::View,
             DbtMaterialization::MaterializedView => Self::MaterializedView,
+            DbtMaterialization::MetricView => Self::MetricView,
             DbtMaterialization::Ephemeral => Self::Ephemeral,
             DbtMaterialization::External => Self::External,
             DbtMaterialization::Test => Self::Test,
@@ -1988,6 +1994,20 @@ mod tests {
     use super::*;
     use minijinja::value::Value as MinijinjaValue;
     use std::io::Cursor;
+
+    #[test]
+    fn metric_view_materialization_maps_to_metric_view_relation() {
+        let materialization = DbtMaterialization::from_str("metric_view").unwrap();
+
+        assert_eq!(
+            RelationType::from(materialization.clone()),
+            RelationType::MetricView
+        );
+        assert_eq!(
+            NodeMaterialization::from(&materialization),
+            NodeMaterialization::MetricView
+        );
+    }
 
     // ---- Seed file hashing (configurable MAXIMUM_SEED_SIZE_MIB, dbt-core PR 13033) ----
 

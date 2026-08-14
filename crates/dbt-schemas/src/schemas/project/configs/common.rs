@@ -20,7 +20,8 @@ use crate::schemas::serde::QueryTag;
 use crate::schemas::serde::StringOrArrayOfStrings;
 use crate::schemas::serde::{
     IndexesConfig, OmissibleGrantConfig, PrimaryKeyConfig, StringOrInteger, bool_or_string_bool,
-    f64_or_string_f64, hours_to_expiration_or_string_omissible, u64_or_string_u64,
+    deserialize_databricks_tags, deserialize_tblproperties, f64_or_string_f64,
+    hours_to_expiration_or_string_omissible, u64_or_string_u64,
 };
 
 #[track_caller]
@@ -144,6 +145,7 @@ pub struct WarehouseSpecificNodeConfig {
     pub location_root: Option<String>,
     #[serde(default, deserialize_with = "bool_or_string_bool")]
     pub use_uniform: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_tblproperties")]
     pub tblproperties: Option<BTreeMap<String, YmlValue>>,
     // this config is introduced here https://github.com/databricks/dbt-databricks/pull/823
     #[serde(default, deserialize_with = "bool_or_string_bool")]
@@ -154,6 +156,7 @@ pub struct WarehouseSpecificNodeConfig {
     pub clustered_by: Option<StringOrArrayOfStrings>,
     pub buckets: Option<i64>,
     pub catalog: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_databricks_tags")]
     pub databricks_tags: Option<BTreeMap<String, YmlValue>>,
     pub compression: Option<String>,
     pub databricks_compute: Option<String>,

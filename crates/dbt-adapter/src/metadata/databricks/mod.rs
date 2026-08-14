@@ -39,6 +39,7 @@ use crate::metadata::*;
 use crate::query_ctx::query_ctx_from_state;
 use crate::record_batch::RecordBatchExt;
 use crate::relation::Relation;
+use crate::relation::config_v2::RelationConfig;
 use crate::relation::databricks::config::{
     DatabricksRelationMetadata, DatabricksRelationMetadataKey,
 };
@@ -254,6 +255,7 @@ impl DatabricksMetadataAdapter {
         state: &State,
         conn: &mut dyn Connection,
         base_relation: &Arc<dyn BaseRelation>,
+        model_config: Option<&RelationConfig>,
         token: CancellationToken,
     ) -> AdapterResult<(RelationType, DatabricksRelationMetadata)> {
         let relation_type = base_relation.relation_type().ok_or_else(|| {
@@ -269,6 +271,45 @@ impl DatabricksMetadataAdapter {
         let rendered_relation = base_relation.render_self_as_str();
 
         let mut metadata = IndexMap::new();
+        if relation_type == RelationType::MetricView {
+            metadata.insert(
+                DatabricksRelationMetadataKey::ShowTblProperties,
+                self.show_tblproperties(&rendered_relation, state, &mut *conn, token.clone())?,
+            );
+
+            let should_fetch_tags = model_config
+                .and_then(|config| {
+                    config.get(
+                        crate::relation::databricks::config::components::relation_tags::TYPE_NAME,
+                    )
+                })
+                .and_then(|component| {
+                    component.as_any().downcast_ref::<
+                        crate::relation::databricks::config::components::relation_tags::RelationTags,
+                    >()
+                })
+                .is_none_or(|tags| !tags.value.is_empty());
+            if should_fetch_tags {
+                metadata.insert(
+                    DatabricksRelationMetadataKey::InfoSchemaRelationTags,
+                    self.fetch_tags(
+                        &database,
+                        &schema,
+                        &identifier,
+                        state,
+                        &mut *conn,
+                        token.clone(),
+                    )?,
+                );
+            }
+
+            metadata.insert(
+                DatabricksRelationMetadataKey::DescribeExtended,
+                self.describe_extended(&database, &schema, &identifier, state, &mut *conn, token)?,
+            );
+            return Ok((relation_type, metadata));
+        }
+
         // IMPORTANT (Mantle replay): query ordering is observable in replay.
         //
         // dbt-databricks (Python) emits relation introspection queries in a specific sequence.
@@ -298,6 +339,9 @@ impl DatabricksMetadataAdapter {
         // Add materialization-specific metadata
         // https://github.com/databricks/dbt-databricks/blob/9e2566fdb56318cb7a59a4492f96c7aaa7af73b0/dbt/adapters/databricks/impl.py#L914-L1021
         match relation_type {
+            RelationType::MetricView => {
+                unreachable!("metric-view metadata is returned before shared relation handling")
+            }
             RelationType::MaterializedView => {
                 metadata.insert(
                     DatabricksRelationMetadataKey::DescribeExtended,
@@ -441,7 +485,6 @@ impl DatabricksMetadataAdapter {
             | RelationType::External
             | RelationType::PointerTable
             | RelationType::DynamicTable
-            | RelationType::MetricView
             | RelationType::Function
             | RelationType::Dictionary => {
                 return Err(AdapterError::new(

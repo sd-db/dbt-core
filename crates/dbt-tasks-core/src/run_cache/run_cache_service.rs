@@ -4168,6 +4168,7 @@ fn full_refresh_blocks_model_submit(materialization: DbtMaterialization) -> bool
         materialization,
         DbtMaterialization::Incremental
             | DbtMaterialization::MaterializedView
+            | DbtMaterialization::MetricView
             | DbtMaterialization::DynamicTable
             | DbtMaterialization::StreamingTable
     )
@@ -4777,6 +4778,9 @@ mod tests {
     fn full_refresh_blocks_only_affected_model_materializations() {
         assert!(full_refresh_blocks_model_submit(
             DbtMaterialization::Incremental
+        ));
+        assert!(full_refresh_blocks_model_submit(
+            DbtMaterialization::MetricView
         ));
         assert!(!full_refresh_blocks_model_submit(DbtMaterialization::View));
         assert!(!full_refresh_blocks_model_submit(DbtMaterialization::Table));
