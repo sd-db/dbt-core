@@ -335,8 +335,7 @@ fn normalize_entity(
     }
 }
 
-/// Process columns by merging each column's top-level and config metadata.
-/// Process resource tags by using the column's tags, or the parent resource tags if unset.
+/// Process column metadata locally and inherit resource tags when column tags are unset.
 /// Returns a Vec of DbtColumn references.
 pub fn process_columns(
     columns: Option<&Vec<ColumnProperties>>,
@@ -354,10 +353,7 @@ pub fn process_columns(
                     .clone()
                     .map(|c| (c.meta, c.tags, c.databricks_tags, c.policy_tags))
                     .unwrap_or_default();
-                let mut column_meta = cp.meta.clone().unwrap_or_default();
-                column_meta.extend(config_meta.unwrap_or_default());
-                let mut deprecated_config = cp.config.clone().unwrap_or_default();
-                deprecated_config.meta = Some(column_meta.clone());
+                let column_meta = config_meta.unwrap_or_default();
 
                 let col = Arc::new(DbtColumn {
                     name: cp.name.clone(),
@@ -376,7 +372,7 @@ pub fn process_columns(
                     column_mask: cp.column_mask.clone(),
                     quote: cp.quote,
                     codec: cp.codec.clone(),
-                    deprecated_config,
+                    deprecated_config: cp.config.clone().unwrap_or_default(),
                     dimension: normalize_dimension(
                         cp.dimension.clone(),
                         &cp.name,
@@ -541,16 +537,13 @@ policy_tags:
     }
 
     #[test]
-    fn test_process_columns_merges_local_meta_without_parent_fallback() {
+    fn test_process_columns_keeps_config_meta_local() {
         let yaml = r#"
 name: id
-meta:
-  constraint: legacy
-  legacy_only: retained
 config:
   meta:
-    constraint: config
-    config_only: retained
+    constraint: local
+    local_only: retained
 "#;
         let column: ColumnProperties = dbt_yaml::from_str(yaml).unwrap();
         let unconfigured = make_col("name", "No column metadata.");
@@ -559,32 +552,22 @@ config:
         let meta = &result[0].meta;
         assert_eq!(
             meta.get("constraint").and_then(|value| value.as_str()),
-            Some("config")
+            Some("local")
         );
         assert_eq!(
-            meta.get("legacy_only").and_then(|value| value.as_str()),
-            Some("retained")
-        );
-        assert_eq!(
-            meta.get("config_only").and_then(|value| value.as_str()),
+            meta.get("local_only").and_then(|value| value.as_str()),
             Some("retained")
         );
         assert_eq!(
             result[0].deprecated_config.meta.as_ref(),
             Some(meta),
-            "column.meta and column.config.meta must expose the same merged metadata"
+            "column.meta must expose its own config.meta"
         );
         assert!(
             result[1].meta.is_empty(),
             "a column without local metadata must not inherit model metadata"
         );
-        assert!(
-            result[1]
-                .deprecated_config
-                .meta
-                .as_ref()
-                .is_some_and(IndexMap::is_empty)
-        );
+        assert!(result[1].deprecated_config.meta.is_none());
     }
 
     /// Regression for fs#13343: a scalar (non-list) `policy_tags` value must deserialize
